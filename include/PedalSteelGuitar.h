@@ -4,7 +4,6 @@
 #include <iomanip>
 #include <string>
 #include <vector>
-#include <array>
 
 struct Note
 {
@@ -64,7 +63,6 @@ struct Note
             throw("Invalid note input");
         }
 
-        
         if (noteName == "C") noteVal = 0;
         else if (noteName == "Db" || noteName == "C#") noteVal = 1;
         else if (noteName == "D") noteVal = 2;
@@ -102,13 +100,25 @@ struct Note
 
     int value;
     bool flatKey;
-
 };
 
 struct Change
 {
+    Change(int str, int semitones)
+    {
+        string = str;
+        shift = semitones;
+        halfStop = false;
+    }
+    Change(int str, int semitones, bool hs)
+    {
+        string = str;
+        shift = semitones;
+        halfStop = hs;
+    }
     int string;
     int shift;
+    bool halfStop;
 };
 
 struct Pedal
@@ -132,9 +142,10 @@ class Psg
 public:
     Psg(std::vector<std::string>);
     void SetFret(int fret);
-    void AddPedals(std::vector<Pedal>&);
+    void AddPedals(std::vector<Pedal>);
     void PedalDown(std::string const&);
     void PedalUp(std::string const&);
+    void PedalHalf(std::string const&);
 
     friend std::ostream& operator<<(std::ostream& stream, const Psg& psg)
     {
@@ -146,15 +157,19 @@ public:
     }
 
 private:
+    Pedal& FindPedal(std::string const&);
     void PedalDown(Pedal&);
     void PedalUp(Pedal&);
+    void PedalHalf(Pedal&);
+
     std::string GetRoot(Note const&);
     bool IsFlatKey(std::string const&);
 
     unsigned int m_fret;
     bool m_flatKey = false;
-    std::array<Note, 10> m_open;
-    std::array<Note, 10> m_strings;
+
+    std::vector<Note> m_open;
+    std::vector<Note> m_strings;
     std::vector<Pedal> m_pedals;
 
 };

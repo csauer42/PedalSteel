@@ -2,19 +2,17 @@
 #include <map>
 
 // F# D# G# E B G# F# E D B
-// 9  6  11 7 2 11 9  7 5 2
 // A: P1 5,10 +2 
 // B: P2 3,6 +1
 // C: P3 4,5 +2
 // ?: P4 5,6,10 -2
 // F: LKL 4,8 +1
-// ?: LKV 5,10 -1
+// X: LKV 5,10 -1
 // D: LKR 4,8 -1
 // ?: RKL 1(+2), 2(+1), 6(-2)
 // E: RKR 2(-1/-2), 9(-1)
 
-static const Note c = Note("C4");
-static const int k_rootString = 3;
+static const int k_rootString = 3;  // string 4 w/ vector offset
 static const std::map<std::string, bool> g_flatKeys {
     {"C", false},
     {"C#", false},
@@ -35,26 +33,43 @@ static const std::map<std::string, bool> g_flatKeys {
     {"B", false}
 };
 
+static const std::map<std::string, std::string> g_relativeMinor {
+    {"C", "Am"},
+    {"C#", "A#m"},
+    {"Db", "Bbm"},
+    {"D", "Bm"},
+    {"D#", "Cm"},
+    {"Eb", "Cm"},
+    {"E", "C#m"},
+    {"F", "Dm"},
+    {"F#", "D#m"},
+    {"Gb", "Ebm"},
+    {"G", "Em"},
+    {"G#", "Fm"},
+    {"Ab", "Fm"},
+    {"A", "F#m"},
+    {"A#", "Gm"},
+    {"Bb", "Gm"},
+    {"B", "G#m"}
+};
+
 Psg::Psg(std::vector<std::string> tuning)
  : m_fret(0)
- , m_open{c, c, c, c, c, c, c, c, c, c}
- , m_strings{c, c, c, c, c, c, c, c, c, c}
 {
-    if (tuning.size() != 10)
+    for (auto const& string : tuning)
     {
-        throw("Only 10 string guitars supported at this time");
-    }
-    for (size_t ii = 0; ii < tuning.size(); ii++)
-    {
-        m_open[ii] = Note(tuning[ii]);
-        m_strings[ii] = Note(tuning[ii]);
+        m_open.push_back(Note(string));
+        m_strings.push_back(Note(string));
     }
 }
 
-void Psg::AddPedals(std::vector<Pedal>& p)
+void Psg::AddPedals(std::vector<Pedal> pedals)
 {
-    m_pedals = p;
-    std::cout << "Added Pedal\n";    
+    for (auto pedal : pedals)
+    {
+        m_pedals.push_back(pedal);
+    }
+    std::cout << "Added Pedals\n";    
 }
 
 void Psg::SetFret(int fret)
@@ -73,26 +88,29 @@ void Psg::SetFret(int fret)
 
 void Psg::PedalDown(std::string const& id)
 {
-    for (auto pedal : m_pedals)
-    {
-        if (pedal.id == id)
-        {
-            return PedalDown(pedal);
-        }
-    }
-    std::cout << "ERROR: PedalDown could not find pedal " << id << "\n";
+    PedalDown(FindPedal(id));
 }
 
 void Psg::PedalUp(std::string const& id)
 {
-    for (auto pedal : m_pedals)
+    PedalUp(FindPedal(id));
+}
+
+void Psg::PedalHalf(std::string const& id)
+{
+    PedalHalf(FindPedal(id));
+}
+
+Pedal& Psg::FindPedal(std::string const& id)
+{
+    for (auto& pedal : m_pedals)
     {
         if (pedal.id == id)
         {
-            return PedalUp(pedal);
+            return pedal;
         }
     }
-    std::cout << "ERROR: PedalUp could not find pedal " << id << "\n";
+    throw("Could not find pedal " + id);
 }
 
 void Psg::PedalDown(Pedal& pedal)
@@ -121,6 +139,30 @@ void Psg::PedalUp(Pedal& pedal)
     }
 }
 
+void Psg::PedalHalf(Pedal& pedal)
+{
+    // TODO require pedal up after pedal half for now,
+    // but add half state to go from 1/2 to up or down automatically
+    std::cout << "Pedal half stop " << pedal.id << "\n";
+    if (pedal.down) PedalUp(pedal);
+    bool hasHalfStop = false;
+
+    for (auto& ch : pedal.changes)
+    {
+        if (ch.halfStop)
+        {
+            hasHalfStop = true;
+            m_strings[ch.string-1] = m_strings[ch.string-1] + ch.shift / 2;
+            pedal.down = true;
+        }
+    }
+
+    if (!hasHalfStop)
+    {
+        throw("PedalHalf called on pedal with no half stop");
+    }
+}
+
 std::string Psg::GetRoot(Note const& note)
 {
     const std::string noteName = note.StrValue();
@@ -132,7 +174,7 @@ std::string Psg::GetRoot(Note const& note)
     {
         return noteName.substr(0, 2);
     }
-    throw("Invalid note name in IsFlatKey");
+    throw("Invalid note name in GetRoot");
 }
 
 bool Psg::IsFlatKey(std::string const& root)
