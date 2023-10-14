@@ -4,6 +4,20 @@
 	"name": "C++",
 	"build": {
 		"dockerfile": "Dockerfile"
+	},
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"ms-vscode.cpptools",
+				"ms-vscode.cpptools-extension-pack",
+				"xaver.clang-format",
+				"twxs.cmake",
+				"ms-vscode.cmake-tools",
+				"ms-azuretools.vscode-docker",
+				"SonarSource.sonarlint-vscode",
+				"ms-vscode.cpptools-themes"
+			]
+		}
 	}
 
 	// Features to add to the dev container. More info: https://containers.dev/features.
